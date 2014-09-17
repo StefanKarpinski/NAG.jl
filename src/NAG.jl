@@ -4,7 +4,8 @@ export
     nag_complex_polygamma,
     nag_opt_read!,
     nag_opt_nlp!,
-    nag_1d_quad_inf_1
+    nag_1d_quad_inf_1,
+    nag_zero_cont_func_brent
 
 nag_licence_query() = ccall((:a00acc, :libnagc_nag), Cint, ()) == 1
 const nag_license_query = nag_licence_query
@@ -182,6 +183,32 @@ function nag_1d_quad_inf_1(
         qp, comm, NAG_ERROR)
 
     return result[1], abserr[1]
+end
+
+const quadfunref_brent = Array(Function)
+quad_fun_wrapper_brent(x::Float64, comm::Ptr{NagInt}) = quadfunref_brent[1](x)::Float64
+const c_quadfun_brent = cfunction(quad_fun_wrapper_brent, Float64, (Float64, Ptr{NagInt}))
+
+function nag_zero_cont_func_brent(
+    a :: Float64,
+    b :: Float64,
+    f :: Function;
+    eps :: Float64 = 1e-5,
+    eta :: Float64 = 0.0,
+)
+    f(a)*f(b) <= 0 || error("f(a)*f(b) must be <= 0")
+    quadfunref_brent[1] = f
+
+    x = zeros(1)
+    comm = zeros(Uint8, 8)
+
+    fill!(NAG_ERROR, 0)
+    ccall((:c05ayc, :libnagc_nag), Void,
+        (Float64, Float64, Float64, Float64,
+         Ptr{Void}, Ptr{Float64}, Ptr{Void}, Ptr{Void}),
+        a, b, eps, eta, NAG.c_quadfun_brent, x, comm, NAG_ERROR)
+
+    return x[1]
 end
 
 end # module

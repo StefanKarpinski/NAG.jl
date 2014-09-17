@@ -72,6 +72,13 @@ function nag_complex_polygamma(z::Number, k::Integer)
           z, k, NAG_ERROR)
 end
 
+# if Base.polygamma doesn't support complex args, use NAG
+if !applicable(Base.polygamma, 1, 1+2im)
+    Base.polygamma(k::Int, z::Complex) = nag_complex_polygamma(z, k)
+    Base.digamma(z::Complex) = polygamma(0, z)
+    Base.trigamma(z::Complex) = polygamma(1, z)
+end
+
 function nag_opt_read!(name::ByteString, optfile::ByteString, print::Bool = false)
     options = zeros(Uint8,1440)
     ccall((:e04xxc, :libnagc_nag), Void, (Ptr{Void},), options)

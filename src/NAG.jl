@@ -3,7 +3,8 @@ export
     nag_licence_query, nag_license_query,
     nag_complex_polygamma,
     nag_opt_read!,
-    nag_opt_nlp!
+    nag_opt_nlp!,
+    nag_1d_quad_inf_1
 
 nag_licence_query() = ccall((:a00acc, :libnagc_nag), Cint, ()) == 1
 const nag_license_query = nag_licence_query
@@ -139,6 +140,48 @@ function nag_opt_nlp!(
           options, C_NULL, NAG_ERROR)
 
     return x, objf[1], g
+end
+
+const quadfunref = Array(Function)
+quad_fun_wrapper(x::Float64, comm::Ptr{NagInt}) = quadfunref[1](x)::Float64
+const c_quadfun = cfunction(quad_fun_wrapper, Float64, (Float64, Ptr{NagInt}))
+
+function nag_1d_quad_inf_1(
+    f :: Function,
+    boundinf :: Symbol = :Infinite,
+    bound :: Float64 = 0.0;
+    epsabs :: Float64 = 0.0,
+    epsrel :: Float64 = sqrt(eps(Float64)),
+    max_num_subint :: NagInt = int32(1e7),
+)
+    max_num_subint > 0 || error("max num subint must be > 0")
+    boundinf_val =
+        boundinf == :UpperSemiInfinite ? int32(1076 + 0) :
+        boundinf == :LowerSemiInfinite ? int32(1076 + 1) :
+        boundinf == :Infinite          ? int32(1076 + 2) :
+            error("""
+            invalid boundinf symbol: $boundinf
+            must be one of: UpperSemiInfinite, LowerSemiInfinite, Infinite
+            """)
+
+    # allocate output variables
+    result = zeros(1)
+    abserr = zeros(1)
+    qp = zeros(Uint8, 48)
+    comm = zeros(Uint8, 8)
+
+    quadfunref[1] = f
+
+    fill!(NAG_ERROR, 0)
+    ccall((:d01smc, :libnagc_nag), Void,
+        (Ptr{Void}, NagInt, Float64, Float64,
+         Float64, NagInt, Ptr{Float64}, Ptr{Float64},
+         Ptr{Void}, Ptr{Void}, Ptr{Void}),
+        c_quadfun, boundinf_val, bound, epsabs,
+        epsrel, max_num_subint, result, abserr,
+        qp, comm, NAG_ERROR)
+
+    return result[1], abserr[1]
 end
 
 end # module

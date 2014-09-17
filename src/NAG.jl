@@ -7,7 +7,7 @@ export
 
 nag_licence_query() = ccall((:a00acc, :libnagc_nag), Cint, ()) == 1
 const nag_license_query = nag_licence_query
-# nag_license_query() || warn("Cannot acquire a NAG license.")
+nag_license_query() || warn("Cannot acquire a NAG license.")
 
 const NagInt = Int32
 const NagComplex = Complex128

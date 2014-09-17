@@ -95,11 +95,17 @@ function nag_opt_nlp!(
     x  :: Vector{Float64},
     objfun! :: Function,
     confun! :: Function,
-    optfile :: ByteString = ""
+    optfile :: ByteString = "",
+    transpose :: Bool = true,
 )
+    # since NAG is row-major
+    #   when transpose == true the rows are linear constraints
+    #   when transpose == false the columns are linear constraints
+    transpose && (A = A')
+
     # extract various dimensions
     n = length(x)
-    nclin, tda = size(A)
+    tda, nclin = size(A)
     ncnlin = length(bl) - n - nclin
 
     # check for usage problems

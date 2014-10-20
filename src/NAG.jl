@@ -171,9 +171,12 @@ function nag_opt_nlp!(
     return x, objf[1], g
 end
 
-const quadfunref = Array(Function)
-quad_fun_wrapper(x::Float64, comm::Ptr{NagInt}) = quadfunref[1](x)::Float64
-const c_quadfun = cfunction(quad_fun_wrapper, Float64, (Float64, Ptr{NagInt}))
+function callback(x::Float64, comm::Ptr{Ptr{Void}})
+    f_ptr = unsafe_load(comm)
+    f_ptr == C_NULL && return 0.0
+    ccall(f_ptr, Float64, (Float64,), x)
+end
+const callback_ptr = cfunction(callback, Float64, (Float64, Ptr{Ptr{Void}}))
 
 function nag_1d_quad_inf_1(
     f :: Function,
@@ -196,17 +199,15 @@ function nag_1d_quad_inf_1(
     # allocate output variables
     result = zeros(1)
     abserr = zeros(1)
-    qp = zeros(Uint8, 48)
-    comm = zeros(Uint8, 8)
-
-    quadfunref[1] = f
+    qp = zeros(Uint8, 40)
+    comm = [cfunction(f, Float64, (Float64,))]
 
     fill!(NAG_ERROR, 0)
     ccall((:d01smc, :libnagc_nag), Void,
         (Ptr{Void}, NagInt, Float64, Float64,
          Float64, NagInt, Ptr{Float64}, Ptr{Float64},
          Ptr{Void}, Ptr{Void}, Ptr{Void}),
-        c_quadfun, boundinf_val, bound, epsabs,
+        callback_ptr, boundinf_val, bound, epsabs,
         epsrel, max_num_subint, result, abserr,
         qp, comm, NAG_ERROR)
 

@@ -153,7 +153,7 @@ function nag_opt_nlp!(
     confunref[1] = confun!
 
     options = isempty(optfile) ? C_NULL :
-        convert(Ptr{Void}, nag_opt_read!("e04mfc", optfile))
+        convert(Ptr{Void}, nag_opt_read!("e04ucc", optfile))
 
     fill!(NAG_ERROR, 0)
     ccall((:e04ucc, :libnagc_nag), Void,

@@ -6,7 +6,8 @@ export
     nag_opt_nlp!,
     nag_1d_quad_inf_1,
     nag_zero_cont_func_brent,
-    nag_opt_lp!
+    nag_opt_lp!,
+    last_nag_error
 
 nag_licence_query() = ccall((:a00acc, :libnagc_nag), Cint, ()) == 1
 const nag_license_query = nag_licence_query
@@ -25,6 +26,8 @@ Base.showerror(io::IO, e::NagError) =
     print(io, "NAG function \"$(e.name)\" [$(e.code)] – $(e.message)")
 
 const NAG_ERROR = zeros(Uint8,544)
+const nag_errors = Array(NagError)
+nag_errors[] = NagError(0, "", "NO_ERROR")
 
 cstr_to_array(p::Ptr{Uint8}, own::Bool = false) =
     pointer_to_array(p, int(ccall(:strlen, Csize_t, (Ptr{Uint8},), p)), own)
@@ -33,11 +36,15 @@ function error_handler(msg::Ptr{Uint8}, code::Cint, name::Ptr{Uint8})
     code == 0 && return
     msg = UTF8String(copy(cstr_to_array(msg)))
     name = ASCIIString(copy(cstr_to_array(name)))
-    throw(NagError(int(code),name,msg))
+    nag_errors[] = NagError(int(code),name,msg)
+    throw(nag_errors[])
 end
 
 unsafe_store!(convert(Ptr{Ptr{Void}}, pointer(NAG_ERROR)) + 2*sizeof(Cint) + 512,
               cfunction(error_handler, Void, (Ptr{Uint8}, Cint, Ptr{Uint8})))
+
+reset_nag_error() = NAG_ERROR[1:2*sizeof(Cint)+512] = 0
+last_nag_error() = nag_errors[]
 
 const objfunref = Array(Function)
 const confunref = Array(Function)
@@ -111,6 +118,8 @@ function nag_opt_lp!(
     options = isempty(optfile) ? C_NULL :
         convert(Ptr{Void}, nag_opt_read!("e04mfc", optfile))
     comm = zeros(Uint8, 8)
+
+    reset_nag_error()
     ccall((:e04mfc,:libnagc_nag), Void,
            (NagInt, NagInt, Ptr{Float64}, NagInt, Ptr{Float64}, Ptr{Float64},
             Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
@@ -155,7 +164,7 @@ function nag_opt_nlp!(
     options = isempty(optfile) ? C_NULL :
         convert(Ptr{Void}, nag_opt_read!("e04ucc", optfile))
 
-    fill!(NAG_ERROR, 0)
+    reset_nag_error()
     ccall((:e04ucc, :libnagc_nag), Void,
           (NagInt, NagInt, NagInt, Ptr{Float64},
            NagInt, Ptr{Float64}, Ptr{Float64},
@@ -201,7 +210,7 @@ function nag_1d_quad_inf_1(
 
     quadfunref[1] = f
 
-    fill!(NAG_ERROR, 0)
+    reset_nag_error()
     ccall((:d01smc, :libnagc_nag), Void,
         (Ptr{Void}, NagInt, Float64, Float64,
          Float64, NagInt, Ptr{Float64}, Ptr{Float64},
@@ -230,7 +239,7 @@ function nag_zero_cont_func_brent(
     x = zeros(1)
     comm = zeros(Uint8, 8)
 
-    fill!(NAG_ERROR, 0)
+    reset_nag_error()
     ccall((:c05ayc, :libnagc_nag), Void,
         (Float64, Float64, Float64, Float64,
          Ptr{Void}, Ptr{Float64}, Ptr{Void}, Ptr{Void}),

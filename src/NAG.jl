@@ -5,7 +5,8 @@ export
     nag_opt_read!,
     nag_opt_nlp!,
     nag_1d_quad_inf_1,
-    nag_zero_cont_func_brent
+    nag_zero_cont_func_brent,
+    nag_opt_lp!
 
 nag_licence_query() = ccall((:a00acc, :libnagc_nag), Cint, ()) == 1
 const nag_license_query = nag_licence_query
@@ -90,6 +91,33 @@ function nag_opt_read!(name::ByteString, optfile::ByteString, print::Bool = fals
     return options
 end
 
+function nag_opt_lp!(
+                     A         ::  Matrix{Float64},
+                     bl        ::  Vector{Float64},
+                     bu        ::  Vector{Float64},
+                     c         ::  Vector{Float64},
+                     x         ::  Vector{Float64};
+                     optfile   ::  ByteString = "",
+                     transpose ::  Bool = true,
+                     )
+    # since NAG is row-major
+    #   when transpose == true the rows are linear constraints
+    #   when transpose == false the columns are linear constraints
+    transpose && (A = A')
+    
+    n = length(c)
+    tda, nclin = size(A)
+    objf = [0.0]
+    options = isempty(optfile) ? C_NULL :
+        convert(Ptr{Void}, nag_opt_read!("e04mfc", optfile))
+    comm = zeros(Uint8, 8)
+    ccall((:e04mfc,:libnagc_nag), Void,
+           (NagInt, NagInt, Ptr{Float64}, NagInt, Ptr{Float64}, Ptr{Float64},
+            Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
+           n, nclin, A, tda, bl, bu, c, x, objf, options, comm, NAG_ERROR)
+    return x, objf
+end
+
 function nag_opt_nlp!(
     A  :: Matrix{Float64},
     bl :: Vector{Float64},
@@ -125,7 +153,7 @@ function nag_opt_nlp!(
     confunref[1] = confun!
 
     options = isempty(optfile) ? C_NULL :
-        convert(Ptr{Void}, nag_opt_read!("e04ucc", optfile))
+        convert(Ptr{Void}, nag_opt_read!("e04mfc", optfile))
 
     fill!(NAG_ERROR, 0)
     ccall((:e04ucc, :libnagc_nag), Void,

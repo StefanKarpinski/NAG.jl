@@ -39,11 +39,17 @@ function error_handler(msg::Ptr{Uint8}, code::Cint, name::Ptr{Uint8})
     nag_errors[] = NagError(int(code), name, msg)
     throw(nag_errors[])
 end
+const ptr_error_handler = cfunction(error_handler, Void, (Ptr{Uint8}, Cint, Ptr{Uint8}))
 
-unsafe_store!(convert(Ptr{Ptr{Void}}, pointer(NAG_ERROR)) + 2*sizeof(Cint) + 512,
-              cfunction(error_handler, Void, (Ptr{Uint8}, Cint, Ptr{Uint8})))
+function reset_nag_error()
+    fill!(NAG_ERROR, 0)
+    unsafe_store!(
+        convert(Ptr{Ptr{Void}}, pointer(NAG_ERROR)) + 2*sizeof(Cint) + 512,
+        ptr_error_handler
+    )
+end
+reset_nag_error()
 
-reset_nag_error() = NAG_ERROR[1:2*sizeof(Cint)+512] = 0
 last_nag_error() = nag_errors[]
 
 const objfunref = Array(Function)

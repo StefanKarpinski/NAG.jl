@@ -142,7 +142,8 @@ function nag_opt_lp!(
            (NagInt, NagInt, Ptr{Float64}, NagInt, Ptr{Float64}, Ptr{Float64},
             Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
            n, nclin, A, tda, bl, bu, c, x, objf, options, comm, NAG_ERROR)
-    return x, objf
+
+    return x, objf[]
 end
 
 function nag_opt_nlp!(
@@ -199,7 +200,7 @@ function nag_opt_nlp!(
           x, objf, g,
           options, C_NULL, NAG_ERROR)
 
-    return x, objf[1], g
+    return x, objf[], g
 end
 
 const quadfunref = Array(Function)
@@ -225,12 +226,12 @@ function nag_1d_quad_inf_1(
         """)
 
     # allocate output variables
-    result = zeros(1)
-    abserr = zeros(1)
+    result = zeros()
+    abserr = zeros()
     qp = zeros(Uint8, 48)
     comm = zeros(Uint8, 8)
 
-    quadfunref[1] = f
+    quadfunref[] = f
 
     reset_nag_error()
     ccall((:d01smc, :libnagc_nag), Void,
@@ -241,7 +242,7 @@ function nag_1d_quad_inf_1(
         epsrel, max_num_subint, result, abserr,
         qp, comm, NAG_ERROR)
 
-    return result[1], abserr[1]
+    return result[], abserr[]
 end
 
 const quadfunref_brent = Array(Function)
@@ -258,7 +259,7 @@ function nag_zero_cont_func_brent(
     f(a)*f(b) <= 0 || error("f(a)*f(b) must be <= 0")
     quadfunref_brent[1] = f
 
-    x = zeros(1)
+    x = zeros()
     comm = zeros(Uint8, 8)
 
     reset_nag_error()
@@ -267,7 +268,7 @@ function nag_zero_cont_func_brent(
          Ptr{Void}, Ptr{Float64}, Ptr{Void}, Ptr{Void}),
         a, b, eps, eta, NAG.c_quadfun_brent, x, comm, NAG_ERROR)
 
-    return x[1]
+    return x[]
 end
 
 end # module

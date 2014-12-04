@@ -10,7 +10,7 @@ export
     last_nag_error
 
 nag_licence_query() = ccall((:a00acc, :libnagc_nag), Cint, ()) == 1
-const nag_license_query = nag_licence_query
+const nag_license_query = nag_licence_query # US vs UK spelling
 nag_license_query() || warn("Cannot acquire a NAG license.")
 
 const NagInt = Int32
@@ -36,7 +36,7 @@ function error_handler(msg::Ptr{Uint8}, code::Cint, name::Ptr{Uint8})
     code == 0 && return
     msg = UTF8String(copy(cstr_to_array(msg)))
     name = ASCIIString(copy(cstr_to_array(name)))
-    nag_errors[] = NagError(int(code),name,msg)
+    nag_errors[] = NagError(int(code), name, msg)
     throw(nag_errors[])
 end
 
@@ -99,14 +99,14 @@ function nag_opt_read!(name::ByteString, optfile::ByteString, print::Bool = fals
 end
 
 function nag_opt_lp!(
-                     A         ::  Matrix{Float64},
-                     bl        ::  Vector{Float64},
-                     bu        ::  Vector{Float64},
-                     c         ::  Vector{Float64},
-                     x         ::  Vector{Float64};
-                     optfile   ::  ByteString = "",
-                     transpose ::  Bool = true,
-                     )
+    A         :: Matrix{Float64},
+    bl        :: Vector{Float64},
+    bu        :: Vector{Float64},
+    c         :: Vector{Float64},
+    x         :: Vector{Float64};
+    optfile   :: ByteString = "",
+    transpose :: Bool = true,
+)
     # since NAG is row-major
     #   when transpose == true the rows are linear constraints
     #   when transpose == false the columns are linear constraints
@@ -148,10 +148,14 @@ function nag_opt_nlp!(
     ncnlin = length(bl) - n - nclin
 
     # check for usage problems
-    length(bl) == length(bu) || error("bounds vectors must have matching length")
-    lexcmp(bl,bu) <= 0 || error("lower bounds cannot be greater than upper bounds")
-    0 <= ncnlin || error("as many bounds as variables and linear constraints must be given")
-    nclin == 0 || n <= tda || error("second dimension of linear coefficients too small")
+    length(bl) == length(bu) ||
+        error("bounds vectors must have matching length")
+    lexcmp(bl,bu) <= 0       ||
+        error("lower bounds cannot be greater than upper bounds")
+    0 <= ncnlin              ||
+        error("as many bounds as variables and linear constraints must be given")
+    nclin == 0 || n <= tda   ||
+        error("second dimension of linear coefficients too small")
 
     # allocate output variables
     objf = zeros()
@@ -197,10 +201,10 @@ function nag_1d_quad_inf_1(
         boundinf == :UpperSemiInfinite ? int32(1076 + 0) :
         boundinf == :LowerSemiInfinite ? int32(1076 + 1) :
         boundinf == :Infinite          ? int32(1076 + 2) :
-            error("""
-            invalid boundinf symbol: $boundinf
-            must be one of: UpperSemiInfinite, LowerSemiInfinite, Infinite
-            """)
+        error("""
+        invalid boundinf symbol: $boundinf
+        must be one of: UpperSemiInfinite, LowerSemiInfinite, Infinite
+        """)
 
     # allocate output variables
     result = zeros(1)

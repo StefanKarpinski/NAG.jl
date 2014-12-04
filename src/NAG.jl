@@ -120,7 +120,19 @@ function nag_opt_lp!(
     
     n = length(c)
     tda, nclin = size(A)
-    objf = [0.0]
+
+    nclin > 0 && tda >= n   ||
+        error("bad linear constraint dimensions (tda ≱ n): $tda ≱ $n")
+    length(bl) == n + nclin ||
+        error("wrong number of lower bounds: $(length(bl)) ≠ $(n + nclin)")
+    length(bu) == n + nclin ||
+        error("wrong number of upper bounds: $(length(bu)) ≠ $(n + nclin)")
+    length(c) == n          ||
+        error("wrong number of coefficients: $(length(c)) ≠ $n")
+    length(x) == n          ||
+        error("wrong data vector size: $(length(x)) ≠ $n")
+
+    objf = zeros()
     options = isempty(optfile) ? C_NULL :
         convert(Ptr{Void}, nag_opt_read!("e04mfc", optfile))
     comm = zeros(Uint8, 8)

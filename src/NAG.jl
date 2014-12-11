@@ -135,13 +135,12 @@ function nag_opt_lp!(
     objf = zeros()
     options = isempty(optfile) ? C_NULL :
         convert(Ptr{Void}, nag_opt_read!("e04mfc", optfile))
-    comm = zeros(Uint8, 8)
 
     reset_nag_error()
     ccall((:e04mfc,:libnagc_nag), Void,
            (NagInt, NagInt, Ptr{Float64}, NagInt, Ptr{Float64}, Ptr{Float64},
             Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}, Ptr{Void}, Ptr{Void}),
-           n, nclin, A, tda, bl, bu, c, x, objf, options, comm, NAG_ERROR)
+           n, nclin, A, tda, bl, bu, c, x, objf, options, C_NULL, NAG_ERROR)
 
     return x, objf[]
 end
